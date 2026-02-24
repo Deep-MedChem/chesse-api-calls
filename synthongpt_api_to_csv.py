@@ -13,7 +13,7 @@ def submit_synthongpt_job(
     headers: Dict[str, str],
     smiles: str,
     db_name: str,
-    sample_size: int,
+    search_quality: str,
     include_properties: bool = False,
     include_metadata: bool = False,
     timeout: int = 60,
@@ -29,7 +29,7 @@ def submit_synthongpt_job(
         "db_name": db_name,
         "include_properties": str(include_properties).lower(),
         "include_metadata": str(include_metadata).lower(),
-        "sample_size": sample_size,
+        "search_quality": search_quality,
     }
     r = requests.post(url, params=params, json={}, headers=headers, timeout=timeout)
     _raise_for_status_with_hint(r, where="submit_synthongpt_job")
@@ -150,6 +150,11 @@ def iter_results_paged(
     page_num = 0
 
     while len(out) < total_needed:
+        ## Progress log
+        if page_num == 0:
+            print(f"Fetching results page {page_num} (up to {total_needed} total hits)...")
+        elif page_num % 10 == 0:
+            print(f"Fetching results page {page_num} (collected {len(out)}/{total_needed} hits so far)...")
         page = get_molsearch_page(
             api_url=api_url,
             headers=headers,
@@ -160,7 +165,6 @@ def iter_results_paged(
             db_name_as_list=db_name_as_list,
             timeout=timeout,
         )
-
         smiles_list = page.get("smiles", []) or []
         id_list = page.get("id", []) or []
         sim_list = page.get("similarity", []) or []
@@ -186,7 +190,6 @@ def iter_results_paged(
             if len(out) >= total_needed:
                 break
 
-        # if the raw payload is shorter than requested, likely end of results
         if n < page_size:
             break
 
@@ -222,12 +225,11 @@ def process_one_query(
         headers=headers,
         smiles=smiles,
         db_name=db_name,
-        sample_size=n,
+        search_quality=str(n),
         include_properties=include_properties,
         include_metadata=include_metadata,
         timeout=timeout,
     )
-
     wait_until_results_available(
         api_url=api_url,
         headers=headers,
@@ -326,7 +328,7 @@ def main():
     p.add_argument("--id-col", default=None, help="Optional column name in input CSV for query ID")
 
     p.add_argument("--n", type=int, default=10000, help="How many nearest molecules to download per query")
-    p.add_argument("--page-size", type=int, default=500, help="Paging size")
+    p.add_argument("--page-size", type=int, default=100, help="Paging size")
     p.add_argument("--poll-sec", type=float, default=1.5, help="Polling interval base")
     p.add_argument("--max-wait-sec", type=int, default=600, help="Max wait for results to appear per query")
     p.add_argument("--timeout", type=int, default=60, help="HTTP timeout per request (sec)")
@@ -358,10 +360,8 @@ def main():
     wrote_header = False
     file_exists = os.path.exists(args.out)
     if file_exists and not args.overwrite:
-        # assume header exists
         wrote_header = True
 
-    # append mode: one big output for all input queries
     os.makedirs(os.path.dirname(args.out) or ".", exist_ok=True)
     with open(args.out, "a", encoding="utf-8", newline="") as f_out:
         writer = csv.writer(f_out)
@@ -392,13 +392,11 @@ def main():
                 )
             except Exception as e:
                 print(f"[ERROR] query_id={qid} failed: {e}")
-                # pokračuj na další řádek
                 continue
 
             for hit_smiles, hit_id, sim in hits:
                 writer.writerow([qid, smiles, hit_smiles, hit_id, sim])
 
-            # flush průběžně, aby to bylo bezpečné při dlouhém běhu
             f_out.flush()
             processed.add(qid)
             print(f"[OK] query_id={qid} hits={len(hits)} -> appended")
@@ -408,6 +406,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
-
