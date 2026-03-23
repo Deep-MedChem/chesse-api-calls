@@ -6,7 +6,7 @@ A collection of Python scripts demonstrating the [CHEESE Search API](https://api
 
 ### `cheese_api_to_csv.py`
 
-Batch molecular similarity search using the `/molsearch` and `/batch_search` endpoints. Reads an input CSV of SMILES, queries CHEESE for nearest neighbors, and writes results to an output CSV. Supports resume, retries, configurable search types (`morgan`, `espsim_shape`, `espsim_electrostatic`), and search quality levels.
+Batch molecular similarity search using the `/molsearch` and `/batch_search` endpoints. Reads an input CSV of SMILES, queries CHEESE for nearest neighbors, and writes results to an output CSV. Supports resume, retries, configurable search types (`morgan`, `espsim_shape`, `espsim_electrostatic`), and search quality levels. Limited to 100 neighbors per query — for larger searches, use `jobs_api/molsearch_jobs_to_csv.py`.
 
 ### `synthongpt_api_to_csv.py`
 
@@ -21,7 +21,7 @@ A simple end-to-end example of the CHEESE Jobs API workflow:
 
 ### `jobs_api/`
 
-Extended Jobs API example for searching an array of molecules. See [`jobs_api/README.md`](jobs_api/README.md) for details.
+Jobs API examples for large-scale searches (up to 100K neighbors per query). Includes array search with JSON output and CSV-based batch search with resume support. See [`jobs_api/README.md`](jobs_api/README.md) for details.
 
 ## Authentication
 
